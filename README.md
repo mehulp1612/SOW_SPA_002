@@ -12,7 +12,7 @@ A React + TypeScript + Vite starter for the SAFI Root SPA concept. This workspac
 ## Run locally
 
 ```powershell
-npm.cmd install
+npm.cmd ci
 npm.cmd run dev
 ```
 
@@ -24,7 +24,7 @@ Open the local Vite URL printed in the terminal. Edit the configuration in the l
 - Starter content: `instances/demo-site/initial-context.json`.
 - Validation: `npm.cmd run validate:context`.
 - The validator checks schema and a small temporary reserved-path list. SAFI's actual reserved routes are not known yet.
-- `package-lock.json` should be committed before the first real preview deployment. Dependency installation could not reach the npm registry in this environment, so the current workflow uses `npm install` until a lockfile can be generated. Switch it to `npm ci` once the lockfile is committed.
+- `package-lock.json` is committed. Use `npm ci` locally and in Actions so installs use the locked dependency versions.
 
 ## Build
 
