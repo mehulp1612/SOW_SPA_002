@@ -36,11 +36,8 @@ jobs:
       - name: Add SPA route fallback
         run: cp dist/index.html dist/404.html
 
-      - name: Record preview provenance
-        shell: bash
-        run: |
-          context_digest="$(sha256sum instances/demo-site/initial-context.json | cut -d ' ' -f 1)"
-          printf '{"commit":"%s","contextSha256":"%s"}\n' "$GITHUB_SHA" "$context_digest" > dist/release.json
+      - name: Record published site provenance
+        run: node scripts/write-release-manifest.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

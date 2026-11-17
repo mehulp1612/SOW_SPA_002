@@ -83,6 +83,7 @@
           },
           "linkLabel": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 40
           },
           "linkHref": {
@@ -101,7 +102,7 @@
             "then": {
               "required": ["linkLabel", "linkHref"],
               "properties": {
-                "linkLabel": { "type": "string" },
+                "linkLabel": { "type": "string", "minLength": 1 },
                 "linkHref": { "type": "string" }
               }
             }

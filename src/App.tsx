@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Ajv2020 from 'ajv/dist/2020.js';
 import schema from '../schema/root-spa.schema.json';
 import initialContext from '../instances/demo-site/initial-context.json';
@@ -28,8 +28,23 @@ const prototypeReservedNames = new Set([
   'admin', 'api', 'auth', 'chat', 'login', 'meetings', 'settings',
 ]);
 const validator = new Ajv2020({ allErrors: true, strict: true }).compile<LandingContext>(schema);
-
 const starter = initialContext as LandingContext;
+const importedContexts = import.meta.glob('../instances/*/initial-context.json', {
+  eager: true,
+  import: 'default',
+}) as Record<string, LandingContext>;
+const publishedContexts = Object.values(importedContexts);
+const publishedPathNames = new Set(publishedContexts.map((context) => context.pathName));
+
+function getRequestedSitePathName(): string | undefined {
+  let pathname = window.location.pathname;
+  const basePath = import.meta.env.BASE_URL;
+  if (basePath !== '/' && pathname.startsWith(basePath)) {
+    pathname = pathname.slice(basePath.length);
+  }
+  const segments = pathname.split('/').filter(Boolean);
+  return segments.length > 1 ? segments.join('/') : segments[0];
+}
 
 function pathNameError(value: string): string | undefined {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
@@ -41,23 +56,127 @@ function pathNameError(value: string): string | undefined {
   return undefined;
 }
 
-function App() {
+function LandingPage({ context, standalone = false }: { context: LandingContext; standalone?: boolean }) {
+  return (
+    <article className={`landing-page${standalone ? ' landing-page-standalone' : ''}`} id="top">
+      <nav className="landing-nav" aria-label="Page navigation">
+        <a href="#top" className="landing-brand"><span className="landing-symbol">g</span>{context.displayName}</a>
+        <a className="nav-contact" href="#say-hello">Let’s talk <span aria-hidden="true">↗</span></a>
+      </nav>
+      <div className="hero-content">
+        <div className="hero-kicker"><span className="kicker-line" /> INDEPENDENT BY NATURE</div>
+        <h2>{context.title}</h2>
+        <p>{context.subtitle}</p>
+        <a className="hero-button" href="#our-approach">Explore the studio <span aria-hidden="true">↓</span></a>
+      </div>
+      <div className="hero-art" aria-hidden="true">
+        <div className="art-sun" />
+        <div className="art-hill art-hill-back" />
+        <div className="art-hill art-hill-front" />
+        <div className="art-stem"><i /><i /><i /></div>
+        <span className="art-caption">FIG. 01 &nbsp; THE GOOD GROUND</span>
+      </div>
+      <div className="section-list">
+        {context.sections.map((section, index) => (
+          <section className="landing-section" id={section.id} key={section.id}>
+            <span className="section-index">0{index + 1}</span>
+            <div className="section-copy">
+              <h3>{section.heading}</h3>
+              <p>{section.body}</p>
+              {section.type === 'features' && section.items && (
+                <ul className="feature-list">{section.items.map((item) => <li key={item}>{item}</li>)}</ul>
+              )}
+              {section.type === 'call-to-action' && section.linkHref && (
+                <a className="section-link" href={section.linkHref}>{section.linkLabel ?? 'Learn more'} <span aria-hidden="true">↗</span></a>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+      <footer className="landing-footer"><span>© 2026 {context.displayName}</span><span>Made with room to think.</span></footer>
+    </article>
+  );
+}
+
+function PublishedPage({ context }: { context: LandingContext }) {
+  useEffect(() => {
+    document.title = `${context.displayName} · ${context.title}`;
+  }, [context.displayName, context.title]);
+  return (
+    <main className={`published-page theme-${context.theme}`}>
+      <LandingPage context={context} standalone />
+    </main>
+  );
+}
+
+function MissingPage({ pathName }: { pathName: string }) {
+  return (
+    <main className="missing-page">
+      <p className="eyebrow">ROOT SPA · PAGE NOT FOUND</p>
+      <h1>This page hasn’t been published.</h1>
+      <p>There is no published site at <code>/{pathName}</code>.</p>
+      <a href={import.meta.env.BASE_URL}>Return to the builder <span aria-hidden="true">↗</span></a>
+    </main>
+  );
+}
+
+function downloadContext(context: LandingContext) {
+  const file = new Blob([`${JSON.stringify(context, null, 2)}\n`], { type: 'application/json' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'initial-context.json';
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function Builder() {
   const [context, setContext] = useState<LandingContext>(starter);
+  const [exported, setExported] = useState(false);
   const validation = useMemo(() => {
     const valid = validator(context);
     const routeError = pathNameError(context.pathName);
-    return {
-      valid: Boolean(valid && !routeError),
-      errors: [
-        ...(validator.errors ?? []).map((error) => `${error.instancePath || '/'} ${error.message ?? 'is invalid'}`),
-        ...(routeError ? [`/pathName ${routeError}`] : []),
-      ],
-    };
+    const duplicateError = publishedPathNames.has(context.pathName) && context.pathName !== starter.pathName
+      ? 'That page address is already in use.'
+      : undefined;
+    const errors = [
+      ...(validator.errors ?? []).map((error) => `${error.instancePath || '/'} ${error.message ?? 'is invalid'}`),
+      ...(routeError ? [`/pathName ${routeError}`] : []),
+      ...(duplicateError ? [`/pathName ${duplicateError}`] : []),
+    ];
+    return { valid: Boolean(valid && !routeError && !duplicateError), errors };
   }, [context]);
 
   function update<K extends keyof LandingContext>(key: K, value: LandingContext[K]) {
+    setExported(false);
     setContext((current) => ({ ...current, [key]: value }));
   }
+
+  function updateSection(index: number, changes: Partial<LandingSection>) {
+    setExported(false);
+    setContext((current) => ({
+      ...current,
+      sections: current.sections.map((section, sectionIndex) => (
+        sectionIndex === index ? { ...section, ...changes } : section
+      )),
+    }));
+  }
+
+  function updateSectionItem(sectionIndex: number, itemIndex: number, value: string) {
+    const section = context.sections[sectionIndex];
+    if (!section?.items) return;
+    const items = section.items.map((item, index) => index === itemIndex ? value : item);
+    updateSection(sectionIndex, { items });
+  }
+
+  function exportForPublication() {
+    if (!validation.valid) return;
+    downloadContext(context);
+    setExported(true);
+  }
+
+  const publishedUrl = `${import.meta.env.BASE_URL}${context.pathName}/`;
+  const hasPublishedVersion = publishedPathNames.has(context.pathName);
 
   return (
     <main className="studio-shell">
@@ -68,9 +187,9 @@ function App() {
         </a>
         <div className="header-meta">
           <span className="prototype-label"><span /> Prototype workspace</span>
-          <a className="repo-link" href={`${import.meta.env.BASE_URL}${context.pathName}`}>
-            Preview route <span aria-hidden="true">↗</span>
-          </a>
+          {hasPublishedVersion
+            ? <a className="repo-link" href={publishedUrl} target="_blank" rel="noreferrer">Open published page <span aria-hidden="true">↗</span></a>
+            : <span className="unpublished-label">Not published yet</span>}
         </div>
       </header>
 
@@ -128,6 +247,61 @@ function App() {
             </div>
           </div>
 
+          <div className="section-editors">
+            <p className="field-label">Content sections</p>
+            {context.sections.map((section, index) => (
+              <details className="section-editor" key={section.id}>
+                <summary><span>0{index + 1}</span>{section.heading}</summary>
+                <div className="section-editor-fields">
+                  <label className="field-label" htmlFor={`${section.id}-heading`}>Section heading</label>
+                  <input
+                    id={`${section.id}-heading`}
+                    value={section.heading}
+                    maxLength={100}
+                    onChange={(event) => updateSection(index, { heading: event.target.value })}
+                  />
+                  <label className="field-label" htmlFor={`${section.id}-body`}>Section text</label>
+                  <textarea
+                    id={`${section.id}-body`}
+                    rows={3}
+                    value={section.body}
+                    maxLength={500}
+                    onChange={(event) => updateSection(index, { body: event.target.value })}
+                  />
+                  {section.type === 'features' && section.items?.map((item, itemIndex) => (
+                    <div key={`${section.id}-item-${itemIndex}`}>
+                      <label className="field-label" htmlFor={`${section.id}-item-${itemIndex}`}>Feature {itemIndex + 1}</label>
+                      <input
+                        id={`${section.id}-item-${itemIndex}`}
+                        value={item}
+                        maxLength={120}
+                        onChange={(event) => updateSectionItem(index, itemIndex, event.target.value)}
+                      />
+                    </div>
+                  ))}
+                  {section.type === 'call-to-action' && (
+                    <>
+                      <label className="field-label" htmlFor={`${section.id}-link-label`}>Link label</label>
+                      <input
+                        id={`${section.id}-link-label`}
+                        value={section.linkLabel ?? ''}
+                        maxLength={40}
+                        onChange={(event) => updateSection(index, { linkLabel: event.target.value })}
+                      />
+                      <label className="field-label" htmlFor={`${section.id}-link-href`}>Link destination</label>
+                      <input
+                        id={`${section.id}-link-href`}
+                        value={section.linkHref ?? ''}
+                        maxLength={200}
+                        onChange={(event) => updateSection(index, { linkHref: event.target.value })}
+                      />
+                    </>
+                  )}
+                </div>
+              </details>
+            ))}
+          </div>
+
           <div className={`validation-note ${validation.valid ? 'is-valid' : 'is-invalid'}`} role="status" aria-live="polite">
             <span className="validation-dot" aria-hidden="true" />
             <div>
@@ -136,7 +310,15 @@ function App() {
               <small>Validated against Root SPA Schema 1.0.0</small>
             </div>
           </div>
-          <p className="editor-footnote">Prototype only · changes stay in this browser session and are not published to GitHub.</p>
+
+          <button className="publish-button" type="button" onClick={exportForPublication} disabled={!validation.valid}>
+            Download validated configuration <span aria-hidden="true">↓</span>
+          </button>
+          <p className="editor-footnote">
+            {exported
+              ? `Configuration downloaded. Add it to instances/${context.pathName}/initial-context.json, then commit and push to publish.`
+              : 'To publish, download the validated file, save it in the matching instances folder, then commit and push. This prototype does not write to GitHub.'}
+          </p>
         </aside>
 
         <section className={`site-preview theme-${context.theme}`} aria-label="Live page preview">
@@ -145,43 +327,7 @@ function App() {
             <span className="preview-url">preview.local / {context.pathName || 'your-page'}</span>
             <span className="preview-size">LIVE PREVIEW</span>
           </div>
-          <article className="landing-page">
-            <nav className="landing-nav" aria-label="Preview page navigation">
-              <a href="#top" className="landing-brand"><span className="landing-symbol">g</span>{context.displayName}</a>
-              <a className="nav-contact" href="#say-hello">Let’s talk <span aria-hidden="true">↗</span></a>
-            </nav>
-            <div className="hero-content">
-              <div className="hero-kicker"><span className="kicker-line" /> INDEPENDENT BY NATURE</div>
-              <h2>{context.title}</h2>
-              <p>{context.subtitle}</p>
-              <a className="hero-button" href="#our-approach">Explore the studio <span aria-hidden="true">↓</span></a>
-            </div>
-            <div className="hero-art" aria-hidden="true">
-              <div className="art-sun" />
-              <div className="art-hill art-hill-back" />
-              <div className="art-hill art-hill-front" />
-              <div className="art-stem"><i /><i /><i /></div>
-              <span className="art-caption">FIG. 01 &nbsp; THE GOOD GROUND</span>
-            </div>
-            <div className="section-list">
-              {context.sections.map((section, index) => (
-                <section className="landing-section" id={section.id} key={section.id}>
-                  <span className="section-index">0{index + 1}</span>
-                  <div className="section-copy">
-                    <h3>{section.heading}</h3>
-                    <p>{section.body}</p>
-                    {section.type === 'features' && section.items && (
-                      <ul className="feature-list">{section.items.map((item) => <li key={item}>{item}</li>)}</ul>
-                    )}
-                    {section.type === 'call-to-action' && section.linkHref && (
-                      <a className="section-link" href={section.linkHref}>{section.linkLabel ?? 'Learn more'} <span aria-hidden="true">↗</span></a>
-                    )}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <footer className="landing-footer"><span>© 2026 {context.displayName}</span><span>Made with room to think.</span></footer>
-          </article>
+          <LandingPage context={context} />
         </section>
       </section>
 
@@ -191,6 +337,14 @@ function App() {
       </footer>
     </main>
   );
+}
+
+function App() {
+  const requestedPathName = getRequestedSitePathName();
+  if (!requestedPathName) return <Builder />;
+
+  const context = publishedContexts.find((site) => site.pathName === requestedPathName);
+  return context ? <PublishedPage context={context} /> : <MissingPage pathName={requestedPathName} />;
 }
 
 export default App;

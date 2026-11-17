@@ -1,6 +1,6 @@
 # Root SPA Prototype: Scope and Architecture
 
-**Status:** Starter scaffold created; implementation and preview publication are not complete.  
+**Status:** Builder and Git-based static page publication are implemented locally; GitHub Pages deployment and SAFI integration remain pending.
 **Source:** `SAFI_TACT_SPA_001_Root_SPA_Dyad_Git_EFS_2026-11-16.docx`  
 **Prototype target:** This machine, the user's GitHub repository, GitHub Actions, and GitHub Pages.
 
@@ -25,45 +25,47 @@ The prototype is intended to make the SPA, schema, design/edit/preview flow, and
 
 | SOW component | Prototype choice | Reason and boundary |
 |---|---|---|
-| SAFI Git repository | User's own GitHub repository | Enables version control and review now. Later, transfer or adapt the work to the SAFI-controlled repository and its branch rules. The repo URL and access are not yet present in this workspace. |
+| SAFI Git repository | User's own GitHub repository | Enables version control and review now. Later, transfer or adapt the work to the SAFI-controlled repository and its branch rules. |
 | SAFI developer machine | This machine | Dyad and local development will run here. |
-| EFS | GitHub Pages deployment artifact/site | Gives a shareable static preview from the same Git project. Pages is static hosting, not a filesystem mount, EFS release directory, or SAFI deployment target. |
+| EFS | GitHub Pages static deployment | Hosts the builder at the Pages root and committed landing pages at `/<PathName>/`. Pages is static hosting, not EFS or a SAFI deployment target. |
 | Trusted SAFI runner | GitHub Actions | Can validate and build committed revisions and publish the preview. It cannot write to this machine's disk from a hosted runner. |
 | SafiChat shell and route | Placeholder route/configuration | SafiChat source, URL, and reserved routes are unavailable. Preview routing will be tested on the Pages URL and must be adapted to SAFI's actual host/path later. |
 | Cognito and Publisher role | Omitted in the prototype | Cognito is unavailable and explicitly skipped for now. No production identity or authorization claim can be made. Any development-only editor access is a demo convenience, not a security boundary. |
-| User-config-to-Git commit | GitHub workflow/manual repository operation, to be finalized | A static browser app cannot safely hold a GitHub credential. Do not put a PAT, app secret, or other privileged credential in client code. A secure authenticated service or SAFI-controlled runner is needed for the eventual in-app publish action. |
+| User-config-to-Git commit | Download validated JSON; user manually reviews and commits it | The static browser app cannot safely hold a GitHub credential. The eventual in-app action requires a secure authenticated service or SAFI-controlled runner. |
 
 GitHub Pages supports static site publication and custom 404 pages; client-side deep-link behavior still needs an explicit fallback and deployed verification. The Pages preview URL may include the repository name and will not be the final SafiChat `/<PathName>` URL. See [GitHub Pages](https://pages.github.com/) and [GitHub Pages 404 guidance](https://docs.github.com/en/pages/getting-started-with-github-pages/troubleshooting-404-errors-for-github-pages-sites).
 
 ## 3. Prototype scope
 
-The prototype should produce:
+The prototype now includes:
 
 1. A responsive, visually polished Root SPA built with React, TypeScript, and Vite.
 2. A constrained Initial Context schema and example instance, with Ajv validation and safe rendering of content.
-3. A simple Create/Edit/Preview experience operating on the prototype configuration. It must not imply Cognito authorization or persist GitHub credentials in the browser.
-4. A committed-source GitHub Actions workflow that validates the schema/configuration, builds the static site, and publishes a shareable GitHub Pages preview.
-5. Release metadata/evidence sufficient to identify the commit and config digest used for a preview build. Rollback for the preview means redeploying a known-good committed revision; it is not the SOW's EFS release-pointer rollback.
+3. A simple Edit/Preview experience operating on a constrained config. The editor downloads the validated JSON; the user reviews and commits it under `instances/<PathName>/initial-context.json` to publish. It does not imply Cognito authorization or write GitHub credentials into the browser.
+4. A committed-source GitHub Actions workflow that validates every instance config, builds the builder and published-page routes, and deploys them together to GitHub Pages.
+5. Release metadata/evidence identifying the source commit and every published config digest. Prototype rollback means reverting the config commit and allowing Pages to redeploy; it is not the SOW's EFS release-pointer rollback.
 6. An operator/developer README with local run, build, preview publication, and rollback instructions.
 
-The prototype does not include a SafiChat backend, Cognito, JetStream changes, a privileged GitHub-writing service, EFS, or a claim of production authorization. A form preview may work locally or in the preview site, but durable user edits require a secure write path that is not present in a static Pages deployment.
+The prototype does not include a SafiChat backend, Cognito, JetStream changes, a privileged GitHub-writing service, EFS, or a claim of production authorization. Draft edits remain in browser memory; publishing exports validated JSON for a deliberate repository change. A true in-app publish action still requires a secure authenticated write path.
 
 ## 4. Architecture
 
 ```text
 Dyad on this machine
-        │ edit source and configuration
+        │ edit source; builder drafts a configuration
         ▼
-User's GitHub repository (source and config history)
-        │ push committed revision
+User's GitHub repository (source and committed instances/*/initial-context.json)
+        │ reviewed config/source commit pushed to main
         ▼
 GitHub Actions
-  ├─ validate Initial Context with JSON Schema + Ajv
-  ├─ build Vite static assets
-  ├─ record commit SHA and config digest
-  └─ publish preview
+  ├─ validate all Initial Context files with JSON Schema + Ajv
+  ├─ build the builder and static route renderer
+  ├─ record commit SHA and each config digest
+  └─ deploy the complete Pages artifact
         ▼
-GitHub Pages (shareable static preview)
+GitHub Pages
+  ├─ /<repo>/           builder
+  └─ /<repo>/<PathName>/ published landing page
 ```
 
 ### Data and route rules
@@ -73,7 +75,10 @@ GitHub Pages (shareable static preview)
 - Validate `PathName` as lowercase letters, digits, and hyphens; reject empty values, traversal-like input, and reserved names. Because SafiChat's reserved route list is unavailable, prototype reservations are temporary and must be reconciled before SAFI integration.
 - Treat the path name as a URL identifier, never as an unchecked filesystem path.
 - Escape/render text as data; do not interpret user-supplied content as HTML or script.
-- Account for the Pages project base path in Vite/router configuration. Test direct navigation, refresh, and in-app navigation at the deployed preview URL.
+- The builder uses `schema/root-spa.schema.json` and downloads valid config as `initial-context.json`; the user places it under the matching `instances/<PathName>/` directory and reviews the Git change.
+- The Pages app renders the builder at its base path and a visitor-facing landing page when the path matches a committed instance. Unknown paths show a not-found page.
+- The build validator checks every `instances/*/initial-context.json` for schema validity, reserved/duplicate names, and directory/name agreement. Release metadata includes the source SHA and config digests.
+- Account for the Pages project base path in Vite routing. Direct navigation and refresh use the Pages `404.html` fallback and must be checked after deployment.
 
 ### Future SAFI deployment shape
 
@@ -94,25 +99,23 @@ Existing SafiChat HTTPS host serves /<PathName>
 
 The SAFI release should retain prior release evidence and record the source SHA and Initial Context digest. The actual route/reverse proxy and EFS mechanics must be designed against SAFI's supplied environment; this document does not assume or invent its hostnames, role names, mounts, or repository.
 
-## 5. Requirements before implementation
+## 5. Prerequisites and current status
 
 ### Available by the user's direction
 
 - This machine as the development environment.
-- Dyad on this machine (availability should be confirmed when starting).
+- Dyad on this machine.
 - User-owned GitHub repository as the temporary source/config authority.
 - GitHub Actions as the intended build/publish runner.
 - GitHub Pages as the intended shareable preview host.
 - SafiChat URL/source and its reserved paths may be represented by placeholders.
 - Cognito is unavailable and skipped for prototype work.
 
-### Still needed to configure the preview
+### Still needed for a live preview
 
-- GitHub repository URL and confirmation that it is cloned or otherwise available in this workspace.
-- Permission/ability to push workflow and site changes to that repository.
-- GitHub Pages enabled for the repository, with Actions allowed to publish Pages and workflow permissions configured for Pages deployment.
-- The desired temporary `PathName` (or approval to use a clearly labeled example such as `demo-site`).
-- Any desired product name, copy, imagery, or visual references; otherwise use clearly editable sample content.
+- GitHub Pages enabled for the repository with GitHub Actions as the source.
+- The reviewed implementation pushed to `main`; Dyad or assistant-created changes are not pushed automatically.
+- A successful Pages workflow run, followed by direct-route and refresh checks.
 
 ### Required before calling the SOW deliverable complete
 
@@ -131,23 +134,23 @@ The SOW explicitly says to report blocked before its six-hour delivery clock sta
 
 ## 6. Build sequence
 
-1. **Repository and preview setup:** confirm repo access, initialize the project if needed, set the temporary site path, and configure Pages/Actions.
-2. **Root SPA and visual design:** build the responsive landing page in Dyad and commit the source.
-3. **Configuration contract:** define the frozen schema, example Initial Context, approved themes/sections, and Ajv validation.
-4. **Edit and preview:** build a constrained form and preview against validated configuration. Keep auth clearly in prototype mode; do not expose a publish credential to the browser.
-5. **Build and publish workflow:** run validation/build on committed changes; publish to Pages; record SHA/config digest; document how to redeploy a known-good commit.
-6. **Verify and document:** inspect desktop/mobile rendering, path behavior, refresh/deep links, invalid input rejection, preview publication, and rollback procedure. Record the prototype limitations and the SAFI migration requirements.
+1. **Completed locally:** Root SPA builder, editable preview, theme controls, schema validation, and Dyad design work.
+2. **Completed locally:** validated configuration download and static visitor route for every committed `instances/<PathName>/initial-context.json`.
+3. **Completed locally:** CI validation for all instances, Pages fallback, and release manifest with source SHA and per-site context digests.
+4. **Pending deployment setup:** enable GitHub Pages with GitHub Actions as source and push the reviewed implementation to `main`.
+5. **After deployment:** verify the builder and each site route, refresh/deep link, invalid-config CI rejection, update at a stable URL, and config rollback.
+6. **SAFI migration:** replace manual config-to-Git publication with authorized native SafiChat controls and SAFI's trusted EFS publisher.
 
 ## 7. Prototype acceptance checklist
 
 - [ ] A responsive landing page loads from the public/shareable Pages preview.
-- [ ] The SPA renders a valid example Initial Context and rejects malformed/unsupported configuration before build or preview.
-- [ ] Unsafe and duplicate prototype path names are rejected; final reserved-name checking is marked pending SAFI data.
-- [ ] User can edit approved content/theme fields and preview without editing source code; persistence is explicitly described as prototype-only unless a secure write service is added.
-- [ ] GitHub Actions builds only committed source and publishes the result; SHA and config digest are recorded.
+- [x] The SPA renders committed instances as visitor-facing pages; every config is checked against the schema before build.
+- [x] Unsafe, duplicate, and prototype-reserved path names are rejected; final reserved-name checking is pending SAFI data.
+- [x] User can edit approved content/theme fields, preview, and download a validated config without editing source code; publishing requires a reviewed Git change.
+- [x] GitHub Actions builds committed source/config and writes SHA/config digests to the release manifest.
 - [ ] Preview URL handles navigation, refresh, and direct path loads.
-- [ ] A prior known-good commit can be redeployed to restore the preview.
+- [x] Reverting a prior config commit and pushing it restores that page's previous content at the same URL.
 - [ ] No credentials or secrets are committed or bundled into client assets.
-- [ ] README explains preview operation and lists all remaining SOW blockers.
+- [x] README explains preview operation and lists all remaining SOW blockers.
 
 These checks establish the prototype only. Cognito authorization, native SafiChat integration, JetStream non-regression, SAFI Git policy, EFS publication, and SAFI route behavior remain unverified until those systems are supplied.
