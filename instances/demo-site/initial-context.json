@@ -1,0 +1,35 @@
+{
+  "templateVersion": "1.0.0",
+  "pathName": "demo-site",
+  "displayName": "Good Ground Studio",
+  "title": "Make room for a more thoughtful day.",
+  "subtitle": "A small creative studio helping independent teams turn good ideas into clear, useful digital experiences.",
+  "theme": "coast",
+  "sections": [
+    {
+      "id": "our-approach",
+      "type": "story",
+      "heading": "Good work starts with a little space.",
+      "body": "We bring strategy, design, and craft together to make the complicated feel simple. Every project is shaped around the people who will use it."
+    },
+    {
+      "id": "what-we-do",
+      "type": "features",
+      "heading": "A clear path from idea to impact.",
+      "body": "Thoughtful support for the moments when your work is ready to grow.",
+      "items": [
+        "Brand direction with a practical point of view",
+        "Web experiences made for real people",
+        "Content systems your team can keep using"
+      ]
+    },
+    {
+      "id": "say-hello",
+      "type": "call-to-action",
+      "heading": "Have a good idea taking shape?",
+      "body": "Tell us where you want to go. We’ll help you find a thoughtful way to get there.",
+      "linkLabel": "Start a conversation",
+      "linkHref": "mailto:hello@example.com"
+    }
+  ]
+}
