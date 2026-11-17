@@ -129,7 +129,7 @@ function App() {
           </div>
 
           <div className={`validation-note ${validation.valid ? 'is-valid' : 'is-invalid'}`} role="status" aria-live="polite">
-            <span className="validation-dot" />
+            <span className="validation-dot" aria-hidden="true" />
             <div>
               <strong>{validation.valid ? 'Settings look good' : 'Check these settings'}</strong>
               {validation.errors.length > 0 && <ul>{validation.errors.map((error) => <li key={error}>{error}</li>)}</ul>}

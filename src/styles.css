@@ -26,5 +26,6 @@ html { min-width: 320px; scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background-image: radial-gradient(#c8c7b9 0.45px, transparent 0.45px); background-size: 8px 8px; background-attachment: fixed; }
 button, input, textarea, select { font: inherit; }
 a { color: inherit; }
-a:focus-visible, button:focus-visible { outline: 2px solid #788d5c; outline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 3px solid #526b3e; outline-offset: 3px; border-radius: 2px; }
 ::selection { background: #d4e4ba; color: #20291f; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
