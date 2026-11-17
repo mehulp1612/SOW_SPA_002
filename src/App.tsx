@@ -88,31 +88,45 @@ function App() {
             <div>
               <p className="eyebrow">01 / PAGE SETTINGS</p>
               <h2>Shape the first impression</h2>
+              <p className="panel-helper">Make a few small edits. Your preview updates as you go.</p>
             </div>
             <span className="edit-icon" aria-hidden="true">✳</span>
           </div>
 
-          <label className="field-label" htmlFor="pathName">Page address</label>
-          <div className="path-control">
-            <span aria-hidden="true">/</span>
-            <input id="pathName" value={context.pathName} maxLength={48} onChange={(event) => update('pathName', event.target.value)} />
+          <div className="editor-fields">
+            <div className="editor-field">
+              <label className="field-label" htmlFor="pathName">Page address <span>URL name</span></label>
+              <div className="path-control">
+                <span aria-hidden="true">/</span>
+                <input id="pathName" aria-describedby="path-help" autoComplete="off" value={context.pathName} maxLength={48} onChange={(event) => update('pathName', event.target.value)} />
+              </div>
+              <small className="field-hint" id="path-help">Lowercase words separated by hyphens.</small>
+            </div>
+
+            <div className="editor-field">
+              <label className="field-label" htmlFor="displayName">Studio name</label>
+              <input id="displayName" autoComplete="off" value={context.displayName} maxLength={80} onChange={(event) => update('displayName', event.target.value)} />
+            </div>
+
+            <div className="editor-field">
+              <label className="field-label" htmlFor="title">Headline <span>{context.title.length}/100</span></label>
+              <textarea id="title" rows={3} value={context.title} maxLength={100} onChange={(event) => update('title', event.target.value)} />
+            </div>
+
+            <div className="editor-field">
+              <label className="field-label" htmlFor="subtitle">Supporting text <span>{context.subtitle.length}/240</span></label>
+              <textarea id="subtitle" rows={3} value={context.subtitle} maxLength={240} onChange={(event) => update('subtitle', event.target.value)} />
+            </div>
+
+            <div className="editor-field">
+              <label className="field-label" htmlFor="theme">Color story</label>
+              <select id="theme" value={context.theme} onChange={(event) => update('theme', event.target.value as LandingContext['theme'])}>
+                <option value="coast">Coast · blue and sand</option>
+                <option value="citrus">Citrus · green and cream</option>
+                <option value="earth">Earth · rose and clay</option>
+              </select>
+            </div>
           </div>
-
-          <label className="field-label" htmlFor="displayName">Studio name</label>
-          <input id="displayName" value={context.displayName} maxLength={80} onChange={(event) => update('displayName', event.target.value)} />
-
-          <label className="field-label" htmlFor="title">Headline</label>
-          <textarea id="title" rows={3} value={context.title} maxLength={100} onChange={(event) => update('title', event.target.value)} />
-
-          <label className="field-label" htmlFor="subtitle">Supporting text</label>
-          <textarea id="subtitle" rows={3} value={context.subtitle} maxLength={240} onChange={(event) => update('subtitle', event.target.value)} />
-
-          <label className="field-label" htmlFor="theme">Color story</label>
-          <select id="theme" value={context.theme} onChange={(event) => update('theme', event.target.value as LandingContext['theme'])}>
-            <option value="coast">Coast · blue and sand</option>
-            <option value="citrus">Citrus · green and cream</option>
-            <option value="earth">Earth · rose and clay</option>
-          </select>
 
           <div className={`validation-note ${validation.valid ? 'is-valid' : 'is-invalid'}`} role="status" aria-live="polite">
             <span className="validation-dot" />
