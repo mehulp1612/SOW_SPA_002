@@ -3,7 +3,7 @@
 :root {
   font-family: 'DM Sans', sans-serif;
   color: #20291f;
-  background: #f4f3ee;
+  background: #f5f4ef;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,7 +23,8 @@
 
 * { box-sizing: border-box; }
 html { min-width: 320px; scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background-image: radial-gradient(#c8c7b9 0.45px, transparent 0.45px); background-size: 8px 8px; background-attachment: fixed; }
 button, input, textarea, select { font: inherit; }
 a { color: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid #788d5c; outline-offset: 3px; }
 ::selection { background: #d4e4ba; color: #20291f; }
